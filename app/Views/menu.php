@@ -275,6 +275,10 @@
                                             class="hide-menu">Menu Manage
                                         </span></a>
                                 </li>
+                                <li class="sidebar-item"><a href="<?=base_url('home/userlog')?>" class="sidebar-link"><span
+                                            class="hide-menu">UserLog
+                                        </span></a>
+                                </li>
                             </ul>
                         </li>
 

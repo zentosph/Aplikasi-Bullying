@@ -6,6 +6,32 @@ use App\Models\M_s;
 use App\Models\M_m;
 class Home extends BaseController
 {
+
+    private function log_activity($activity)
+    {
+		$model = new M_s();
+        $data = [
+            'id_user'    => session()->get('id'),
+            'activity'   => $activity,
+			'timestamp' => date('Y-m-d H:i:s'),
+			'delete' => Null
+        ];
+
+        $model->tambah('activity', $data);
+    }
+
+	private function log_activitys($activity, $id)
+    {
+		$model = new M_s();
+        $data = [
+            'id_user'    => $id,
+            'activity'   => $activity,
+			'timestamp' => date('Y-m-d H:i:s'),
+			'delete' => Null
+        ];
+
+        $model->tambah('activity', $data);
+    }
     private function updatelog($update,$table)
     {
 		$model = new M_s();
@@ -18,6 +44,83 @@ class Home extends BaseController
 
         $model->tambah('updatelog', $data);
     }
+
+    public function userlog(){
+		$model = new M_s();
+		$where1 = array('level' =>session()->get('level'));
+		$data['menu'] = $model->getwhere('menu', $where1);
+		if ($data['menu'] === null || !isset($data['menu']->dashboard)) {
+			return redirect()->to('Home/login');
+		}
+		if (session()->get('level') == 1 || $data['menu']->website == 1) {
+		$model = new M_s();
+		$this->log_activity('User membuka view userlog');
+		$where = array('id_user' => session()->get('id'));
+		$data['dua'] = $model->getwhere('user', $where);
+		$where1 = array('activity.delete' => Null);
+		$data['satu'] = $model->join2('activity','user','activity.id_user = user.id_user',$where1);
+		$data['users'] = $model->tampil('user');
+		$where = array('id_setting' => 1);
+		$data['setting'] = $model->getwhere('setting', $where);
+        $where = array('user.id_kelas' => session()->get('kelas'));
+        $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
+		echo view('header',$data);
+		echo view('menu',$data);
+		echo view('userlog',$data);
+		echo view('footer');
+	} else{
+		return redirect()->to('home/login');
+	}
+	}
+
+    public function filteruserlog()
+    {
+		if (session()->get('level') == 1) {
+        // Ambil parameter tanggal dari query string
+        $id = $this->request->getGet('id_user');
+
+
+        // Set tanggal default jika tidak ada filter
+        if (!$id) {
+            $id = []; // Atau tanggal default yang sesuai
+        }
+
+
+        // Panggil model untuk mendapatkan data yang difilter
+        $model = new M_s(); // Ganti dengan nama model Anda
+		$where = array('id_user' => session()->get('id'));
+		$data['dua'] = $model->getwhere('user', $where);
+		$where = array('id_setting' => 1);
+		$data['setting'] = $model->getwhere('setting', $where);
+		$where2 = array('user.id_user' => $id);
+		$where1 = array('activity.delete' => null);
+        $data['satu'] = $model->joinwhere2('activity','user','activity.id_user = user.id_user',$where1,$where2);
+		$where1 = array('level' =>session()->get('level'));
+		$data['menu'] = $model->getwhere('menu', $where1);
+		$data['users'] = $model->tampil('user');
+        $where = array('user.id_kelas' => session()->get('kelas'));
+        $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
+        // Load view dengan data yang difilter
+        echo view('header',$data);
+		echo view('menu',$data);
+		echo view('userlog',$data);
+		echo view('footer');
+	} elseif(session()->get('level') == 2||session()->get('level') == 3) {
+		return redirect()->to('Home/notfound');
+	}else{
+		return redirect()->to('home/login');
+	}
+    }
+
+    public function huserlog($id)
+	{
+		$model = new M_s();
+		$where = array('id_activity' => $id);
+		$model->hapus('activity', $where);
+		$this->log_activity('User Menghapus data activity');
+
+		return redirect()->to('Home/userlog');
+	}
 	public function index()
 	{
 		$model = new M_s();
@@ -28,6 +131,7 @@ class Home extends BaseController
 		}
 		if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
         $model = new M_s();
+        $this->log_activity('User membuka Dashboard');
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
         $where = array('setting.id_setting' => 1);
@@ -145,7 +249,7 @@ public function aksi_login()
     $cek = $model->getWhere('user', $where);
     
     if ($cek) {
-        // $this->log_activitys('User Melakukan Login', $cek->id_user);
+        $this->log_activitys('User Melakukan Login', $cek->id_user);
         session()->set('nama', $cek->nama);
         session()->set('id', $cek->id_user);
         session()->set('level', $cek->id_level);
@@ -174,6 +278,7 @@ public function t_kasus(){
 		}
 		if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
         $model = new M_s();
+        $this->log_activity('User Membuka Form Kasus');
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
         $where = array('setting.id_setting' => 1);
@@ -198,7 +303,7 @@ public function aksi_tkasus(){
 		'create_at' => date('Y-m-d H:i:s'),
 		'create_by' => session()->get('id'),
     );
-
+    $this->log_activity('User Melakukan Menambahkan Kasus');
 	$model->tambah('kasus', $data);
     return redirect()->to('home/t_kasus');
 }
@@ -207,6 +312,7 @@ public function kasus(){
     $model = new M_s();
 		$where1 = array('level' =>session()->get('level'));
 		$data['menu'] = $model->getwhere('menu', $where1);
+        $this->log_activity('User Membuka View Kasus');
 		if ($data['menu'] === null || !isset($data['menu']->dashboard)) {
 			return redirect()->to('Home/login');
 		}
@@ -273,6 +379,7 @@ public function detailkasus($id){
     $model = new M_s();
 		$where1 = array('level' =>session()->get('level'));
 		$data['menu'] = $model->getwhere('menu', $where1);
+        $this->log_activity('User Membuka Detail Kasus');
 		if ($data['menu'] === null || !isset($data['menu']->dashboard)) {
 			return redirect()->to('Home/login');
 		}
@@ -298,6 +405,7 @@ public function detailkasus($id){
 public function statusproses($id){
     $model = new M_S;
 			$where = array('id_kasus' => $id);
+            $this->log_activity('User Mengubah status menjadi di Proses');
 			// Ubah status transaksi menjadi "habis" di kedua tabel
 			$model->statuschange('kasus', 'status', 'Proses', $where);
 			// Kirim respons (jika diperlukan)
@@ -307,7 +415,7 @@ public function statusproses($id){
 public function statuspending($id){
     $model = new M_S;
 			$where = array('id_kasus' => $id);
-			// Ubah status transaksi menjadi "habis" di kedua tabel
+			$this->log_activity('User Mengubah status menjadi di Pending');
 			$model->statuschange('kasus', 'status', 'Pending', $where);
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/kasus');
@@ -315,7 +423,7 @@ public function statuspending($id){
 public function statuspks($id){
     $model = new M_S;
 			$where = array('id_kasus' => $id);
-			// Ubah status transaksi menjadi "habis" di kedua tabel
+			$this->log_activity('User Mengubah status menjadi Proses ke Kepala Sekolah');
 			$model->statuschange('kasus', 'status', 'Proses ke Kepala Sekolah', $where);
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/kasus');
@@ -324,7 +432,7 @@ public function statuspks($id){
 public function statusselesai($id){
     $model = new M_S;
 			$where = array('id_kasus' => $id);
-			// Ubah status transaksi menjadi "habis" di kedua tabel
+			$this->log_activity('User Mengubah status menjadi Selesai');
 			$model->statuschange('kasus', 'status', 'Selesai', $where);
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/kasus');
@@ -336,6 +444,7 @@ public function profile(){
     
     if (session()->get('level') == 4){
         $model = new M_s();
+        $this->log_activity('User Membuka Profile');
         $where1 = array('level' =>session()->get('level'));
 		$data['menu'] = $model->getwhere('menu', $where1);
         $where = array('user.id_kelas' => session()->get('kelas'));
@@ -350,6 +459,7 @@ public function profile(){
         echo view('footer');
     }elseif (session()->get('level') == 1 | session()->get('level') == 2 | session()->get('level') == 3 ){
             $model = new M_s();
+            $this->log_activity('User Membuka Profile');
             $where1 = array('level' =>session()->get('level'));
 		$data['menu'] = $model->getwhere('menu', $where1);
             $where = array('user.id_kelas' => session()->get('kelas'));
@@ -401,7 +511,7 @@ public function aksi_eprofile(){
 	
 
 		
-
+    $this->log_activity('User Mengedit Profile');
     $model->edit('user', $data, $where);
     return redirect()->to('home/profile');
     // print_r($id);
@@ -441,7 +551,7 @@ public function aksi_euser(){
 	
 
 		
-
+    $this->log_activity('User Mengedit User');
     $model->edit('user', $data, $where);
     return redirect()->to('home/detailuser/'.$id);
     // print_r($id);
@@ -455,6 +565,7 @@ public function dkasus(){
 			return redirect()->to('Home/login');
 		}
 	if (session()->get('level') == 1 || $data['menu']->data == 1) {
+        $this->log_activity('User Membuka Data Kasus');
         $model = new M_s();
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -479,6 +590,7 @@ public function editkasus($id){
         return redirect()->to('Home/login');
     }
 if (session()->get('level') == 1 || $data['menu']->data == 1) {
+    $this->log_activity('User Membuka Form Edit Kasus');
         $model = new M_s();
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -511,7 +623,7 @@ public function aksi_ekasus(){
 		'update_at' => date('Y-m-d H:i:s'),
 		'update_by' => session()->get('id'),
     );
-
+    $this->log_activity('User Mengedit Kasus');
 	$model->edit('kasus', $data, $where);
     return redirect()->to('home/dkasus');
 }
@@ -521,6 +633,7 @@ public function softdeletekasus($id){
 			$where = array('id_kasus' => $id);
 			// Ubah status transaksi menjadi "habis" di kedua tabel
 			$model->statuschange('kasus', 'delete', date('Y-m-d H:i:s'), $where);
+            $this->log_activity('User Soft Delete Kasus');
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/kasus');
 }
@@ -530,6 +643,7 @@ public function restorekasus($id){
 			$where = array('id_kasus' => $id);
 			// Ubah status transaksi menjadi "habis" di kedua tabel
 			$model->statuschange('kasus', 'delete', NULL, $where);
+            $this->log_activity('User Restore Kasus');
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/skasus');
 }
@@ -542,7 +656,7 @@ public function skasus(){
 			return redirect()->to('Home/login');
 		}
 	if (session()->get('level') == 1 || $data['menu']->data == 1) {
-
+        $this->log_activity('User Membuka View Skasus');
         $model = new M_s();
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -568,7 +682,7 @@ public function user(){
 			return redirect()->to('Home/login');
 		}
 	if (session()->get('level') == 1 || $data['menu']->data == 1) {
-
+        $this->log_activity('User Membuka View User');
         $model = new M_s();
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -596,7 +710,7 @@ public function resetpassword($id) {
     $data = array(
         'password' => md5('sph'),
     );
-    
+    $this->log_activity('User Reset Password Ke Default');
     // $this->log_activity('User Reset Password for user with ID ' . $id);
 
     // $this->updatelog('User Update Password to Default for user with ID ' . $id, 'user');
@@ -617,6 +731,7 @@ public function detailuser($id){
 		}
 	if (session()->get('level') == 1 || $data['menu']->data == 1) {
             $model = new M_s();
+            $this->log_activity('User Membuka Detail User');
             $where = array('user.id_kelas' => session()->get('kelas'));
             $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
             $where = array('user.id_user' => $id);
@@ -639,6 +754,7 @@ public function softdeleteuser($id){
 			$where = array('id_user' => $id);
 			// Ubah status transaksi menjadi "habis" di kedua tabel
 			$model->statuschange('user', 'delete', date('Y-m-d H:i:s'), $where);
+            $this->log_activity('User Soft Delete User');
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/user');
 }
@@ -651,6 +767,7 @@ public function suser(){
 			return redirect()->to('Home/login');
 		}
 	if (session()->get('level') == 1 || $data['menu']->data == 1) {
+        $this->log_activity('User Membuka View Suser');
         $model = new M_s();
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -671,6 +788,7 @@ public function restoreuser($id){
     $model = new M_S;
 			$where = array('id_user' => $id);
 			// Ubah status transaksi menjadi "habis" di kedua tabel
+            $this->log_activity('User Restore User');
 			$model->statuschange('user', 'delete', Null, $where);
 			// Kirim respons (jika diperlukan)
 			return redirect()->to('home/suser');
@@ -681,7 +799,7 @@ public function deleteuser($id)
 		$model = new M_s();
 		$where = array('id_user' => $id);
 		$model->hapus('user', $where);
-
+        $this->log_activity('User Mendelete User');
 		return redirect()->to('Home/suser');
 	}
 
@@ -698,6 +816,7 @@ if (session()->get('level') == 1 || $data['menu']->data == 1) {
     $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
     $where = array('setting.id_setting' => 1);
     $data['setting'] = $model->getwhere('setting', $where);
+    $this->log_activity('User Membuka Setting');
     echo view('header', $data);
     echo view('menu', $data);
     echo view('setting',$data);
@@ -740,7 +859,7 @@ public function aksi_esetting() {
         $l_icon->move(ROOTPATH . 'public/assets/images/website', $foto_l_image);
         $data['login_image'] = $foto_l_icon;
     }
-    
+    $this->log_activity('User Mengedit Setting');
     $where = array('id_setting' => $id);
     $model->edit('setting', $data, $where);
     
@@ -769,7 +888,7 @@ if (session()->get('level') == 1 || $data['menu']->data == 1) {
 			$where = ['id_setting' => 1];
 			$data['setting'] = $model->getwhere('setting', $where);
 			
-			
+            $this->log_activity('User Membuka Manage Menu');
 			echo view('header', $data);
 			echo view('menu', $data);
 			echo view('managemenu', $data);
@@ -789,7 +908,7 @@ public function updatemenuws()
     // Panggil fungsi untuk update menu visibility
     $menuModel = new M_m(); // Pastikan model ini sudah dibuat
     $success = $menuModel->updateMenuVisibility($data, $level);
-
+    $this->log_activity('User Mengedit Menu');
     if ($success) {
         return redirect()->back()->with('message', 'Menu updated successfully for Wali Kelas');
     } else {
@@ -804,7 +923,7 @@ public function updateMenuks()
     $data = $this->request->getPost();
     $menuModel = new M_m();
     $success = $menuModel->updateMenuVisibility($data, $level);
-
+    $this->log_activity('User Mengedit Menu');
     if ($success) {
         return redirect()->back()->with('message', 'Menu updated successfully for Kepala Sekolah');
     } else {
@@ -819,7 +938,7 @@ public function updateMenumd()
     $data = $this->request->getPost();
     $menuModel = new M_m();
     $success = $menuModel->updateMenuVisibility($data, $level);
-
+    $this->log_activity('User Mengedit Menu');
     if ($success) {
         return redirect()->back()->with('message', 'Menu updated successfully for Murid');
     } else {
@@ -833,7 +952,7 @@ public function restoreupkasus($id)
 
     // Get the current data from the barang table
     $currentData = $model->getWherearray('kasus', ['id_kasus' => $id]);
-
+    $this->log_activity('User Restore Edit Kasus');
     // Get the backup data from the barang_backup table
     $backupData = $model->getWherearray('kasus_backup', ['id_kasus' => $id]);
     unset($backupData['update_by']);
@@ -860,7 +979,7 @@ public function restoreupuser($id)
 
     // Get the current data from the barang table
     $currentData = $model->getWherearray('user', ['id_user' => $id]);
-
+    $this->log_activity('User Restore Edit User');
     // Get the backup data from the barang_backup table
     $backupData = $model->getWherearray('user_backup', ['id_user' => $id]);
     unset($backupData['update_by']);
@@ -890,6 +1009,7 @@ public function t_user(){
 		}
 		if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
         $model = new M_s();
+        $this->log_activity('User Membuka Form Tambah User');
         $where = array('user.id_kelas' => session()->get('kelas'));
         $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
         $where = array('setting.id_setting' => 1);
@@ -942,7 +1062,7 @@ public function aksi_tuser() {
         'foto' => $foto,
         'delete' => null
     );
-
+    $this->log_activity('User Menambahkan User');
     // Tambahkan data ke dalam tabel 'user'
     $model->tambah('user', $data);
     return redirect()->to('home/user');
@@ -956,6 +1076,7 @@ public function laporan(){
         return redirect()->to('Home/login');
     }
     if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
+    $this->log_activity('User Membuka View Laporan');
     $model = new M_s();
     $where = array('user.id_kelas' => session()->get('kelas'));
     $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
@@ -1032,6 +1153,7 @@ public function filterTanggal()
     }
     if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
     $model = new M_s();
+    $this->log_activity('User Membuat Laporan Pdf');
     $where = array('user.id_kelas' => session()->get('kelas'));
     $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
     $where = array('setting.id_setting' => 1);
@@ -1081,6 +1203,7 @@ public function filterTanggal()
     }
     if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
     $model = new M_s();
+    $this->log_activity('User Membuat Laporan Excel');
     $where = array('user.id_kelas' => session()->get('kelas'));
     $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
     $where = array('setting.id_setting' => 1);
@@ -1130,6 +1253,7 @@ public function filterTanggal()
     }
     if (session()->get('level') == 1 || $data['menu']->dashboard == 1) {
     $model = new M_s();
+    $this->log_activity('User Membuat Laporan Windows');
     $where = array('user.id_kelas' => session()->get('kelas'));
     $data['user'] = $model->joinrow('kelas','user','kelas.id_kelas = user.id_kelas', $where);
     $where = array('setting.id_setting' => 1);

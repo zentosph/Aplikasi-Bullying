@@ -177,11 +177,20 @@ class M_s extends Model
                             // return $this->db->query('select * from brg_msk join barang on brg_msk.id_brg=barang.id_brg')
                             // ->getResult();
         }
+
+        public function join2($pil,$tabel1,$on,$where)
+        {
+            return $this->db->table($pil)
+                            ->join($tabel1,$on)
+                            ->getWhere($where)->getResult();
+                            // return $this->db->query('select * from brg_msk join barang on brg_msk.id_brg=barang.id_brg')
+                            // ->getResult();
+        }
     
         public function joinwhere2($pil,$tabel1,$on,$where, $where1)
         {
             return $this->db->table($pil)
-                            ->join($tabel1,$on,"right")
+                            ->join($tabel1,$on)
                             ->Where($where)
                             ->Where($where1)
                             ->get()
