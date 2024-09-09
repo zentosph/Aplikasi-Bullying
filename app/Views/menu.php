@@ -1,3 +1,31 @@
+<script>
+let inactivityTime = function () {
+        let time;
+        let logoutUrl = "<?= base_url('home/logout') ?>";
+
+        // Reset the timer whenever there's user activity
+        window.onload = resetTimer;
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+        document.ontouchstart = resetTimer; // For mobile devices
+        document.onclick = resetTimer;
+        document.onscroll = resetTimer;
+
+        function logout() {
+            alert("You have been logged out due to inactivity.");
+            window.location.href = logoutUrl;
+        }
+
+        function resetTimer() {
+            clearTimeout(time);
+            time = setTimeout(logout, 300000);  // 5 minutes in milliseconds
+            // Optionally, update a cookie for the last active time
+            document.cookie = "lastActivity=" + new Date().getTime() + "; path=/";
+        }
+    };
+
+    inactivityTime();
+</script>
 <div id="main-wrapper" data-theme="light" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
         data-sidebar-position="fixed" data-header-position="fixed" data-boxed-layout="full">
         <!-- ============================================================== -->
